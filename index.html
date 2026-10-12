@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: rgb(11, 11, 11);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 1200px;
+            height: 700px;
+            overflow: hidden;
+            background: #000;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+        }
+
+        #c {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* Screen Damage Vignette */
+        #damage-vignette {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            box-shadow: inset 0 0 100px 30px rgba(255, 0, 0, 0);
+            transition: box-shadow 0.15s ease-out;
+            z-index: 10;
+        }
+
+        #damage-vignette.active {
+            box-shadow: inset 0 0 120px 50px rgba(255, 20, 20, 0.7);
+        }
+
+        /* Weapon UI */
+        #weapon-ui {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: none;
+            padding: 12px 16px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 180px;
+            box-shadow: none;
+            z-index: 20;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+        }
+
+        #weapon-name {
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        #ammo-count {
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+            transition: color 0.15s ease;
+        }
+
+        #ammo-count.low-ammo {
+            color: #ff2222;
+        }
+
+        #reload-status {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ff2222;
+            display: none;
+            animation: pulse 0.8s infinite alternate;
+        }
+
+        /* Player Health UI */
+        #player-ui {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: none;
+            padding: 12px 16px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 200px;
+            box-shadow: none;
+            z-index: 20;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+        }
+
+        .health-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        #player-health-text {
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+            font-size: 15px;
+            color: #ffffff;
+            font-weight: bold;
+            transition: color 0.15s ease;
+        }
+
+        #player-health-text.low-health {
+            color: #ff2222;
+        }
+
+        .health-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #player-health-bar {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            transition: width 0.2s ease-out, background 0.2s ease-out;
+            border-radius: 2px;
+        }
+
+        /* FPS Counter */
+        #fps-counter {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: none;
+            padding: 8px 14px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+            font-weight: bold;
+            color: #00ff00;
+            box-shadow: none;
+            z-index: 20;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+        }
+
+        /* Zombie Stats & Wave UI */
+        #stats-ui {
+            position: absolute;
+            top: 72px;
+            left: 24px;
+            display: flex;
+            gap: 10px;
+            z-index: 20;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+        }
+
+        .stat-badge {
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: none;
+            padding: 8px 14px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+            font-weight: bold;
+            color: #ffffff;
+            box-shadow: none;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+        }
+
+        .stat-badge.kill,
+        .stat-badge.zombie,
+        .stat-badge.score {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Controls Info */
+        #controls-info {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: none;
+            padding: 10px 14px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+            line-height: 1.5;
+            color: #ffffff;
+            box-shadow: none;
+            z-index: 20;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+        }
+
+        .control-section {
+            margin-bottom: 4px;
+        }
+
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-key {
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 24px;
+            height: 24px;
+            margin-left: -12px;
+            margin-top: -12px;
+            pointer-events: none;
+            z-index: 30;
+            transition: transform 0.08s ease;
+        }
+
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.85);
+            transition: all 0.1s ease;
+        }
+
+        #crosshair::before {
+            width: 2px;
+            height: 18px;
+            left: 11px;
+            top: 3px;
+        }
+
+        #crosshair::after {
+            width: 18px;
+            height: 2px;
+            left: 3px;
+            top: 11px;
+        }
+
+        /* Crosshair Hitmarkers */
+        .hitmarker-ticks {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transform: scale(0.6);
+            transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .hitmarker-tick {
+            position: absolute;
+            width: 7px;
+            height: 2px;
+            background: #ffffff;
+            border-radius: 1px;
+        }
+
+        .tick-tl {
+            top: 2px;
+            left: 2px;
+            transform: rotate(45deg);
+        }
+
+        .tick-tr {
+            top: 2px;
+            right: 2px;
+            transform: rotate(-45deg);
+        }
+
+        .tick-bl {
+            bottom: 2px;
+            left: 2px;
+            transform: rotate(-45deg);
+        }
+
+        .tick-br {
+            bottom: 2px;
+            right: 2px;
+            transform: rotate(45deg);
+        }
+
+        #crosshair.hit .hitmarker-ticks {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        #crosshair.hit .hitmarker-tick {
+            background: #ffffff;
+            box-shadow: 0 0 6px #ffffff;
+        }
+
+        #crosshair.headshot .hitmarker-ticks {
+            opacity: 1;
+            transform: scale(1.4);
+        }
+
+        #crosshair.headshot .hitmarker-tick {
+            background: #ff2222;
+            box-shadow: 0 0 8px #ff2222;
+        }
+
+        #crosshair.kill .hitmarker-ticks {
+            opacity: 1;
+            transform: scale(1.5);
+        }
+
+        #crosshair.kill .hitmarker-tick {
+            background: #ff2222;
+            box-shadow: 0 0 10px #ff2222;
+        }
+
+        /* Damage Number Popups */
+        .damage-popup {
+            position: absolute;
+            font-family: Consolas, 'Lucida Console', Monaco, monospace;
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.9), 0 2px 4px rgba(0, 0, 0, 1);
+            pointer-events: none;
+            z-index: 40;
+            animation: floatDamage 0.7s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        .damage-popup.headshot-damage {
+            font-size: 22px;
+            color: #ff2222;
+            text-shadow: 0 0 10px rgba(255, 34, 34, 0.8), 0 2px 4px rgba(0, 0, 0, 1);
+        }
+
+        @keyframes floatDamage {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+
+            30% {
+                transform: translate(-50%, -80%) scale(1.2);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -120%) scale(0.9);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: absolute;
+            inset: 0;
+            background: rgb(11, 11, 11);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        #loading-screen.hidden {
+            display: none;
+        }
+
+        .loading-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .loading-status {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .loading-bar-container {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .loading-bar {
+            width: 0%;
+            height: 100%;
+            background: #ffffff;
+            transition: width 0.3s ease;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Game Menu */
+        #game-menu {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        #game-menu.hidden {
+            display: none;
+        }
+
+        .menu-title {
+            font-size: 48px;
+            font-weight: bold;
+            color: red;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+
+        .tip-message {
+            font-size: 16px;
+            font-weight: bold;
+            color: red;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        .menu-subtitle {
+            font-size: 24px;
+            color: #ffffff;
+            margin-bottom: 40px;
+            opacity: 0.8;
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        .stats-container {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 30px 40px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 30px;
+            min-width: 300px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 20px;
+            color: #ffffff;
+        }
+
+        .stat-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-label {
+            opacity: 0.7;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #00ff00;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="c" width="1200" height="700"></canvas>
+
+        <!-- Screen Damage Vignette -->
+        <div id="damage-vignette"></div>
+
+        <!-- FPS Counter -->
+        <div id="fps-counter" >FPS: 0</div>
+
+        <!-- Weapon UI -->
+        <div id="weapon-ui">
+            <div id="weapon-name">Pistol</div>
+            <div id="ammo-count">12 / 12</div>
+            <div id="reload-status">Reloading...</div>
+        </div>
+
+        <!-- Player Health UI -->
+        <div id="player-ui">
+            <div class="health-header">
+                <span>Survivor HP</span>
+                <span id="player-health-text">100 / 100</span>
+            </div>
+            <div class="health-bar-bg">
+                <div id="player-health-bar"></div>
+            </div>
+        </div>
+
+        <!-- Combat Stats UI -->
+        <div id="stats-ui">
+            <div class="stat-badge zombie" id="zombie-count">Zombies: 0</div>
+            <div class="stat-badge kill" id="kill-count">Kills: 0</div>
+            <div class="stat-badge score" id="score-count">Score: 0</div>
+            <div class="stat-badge score" id="wave-count">Waves: 0</div>
+        </div>
+
+        <!-- Controls Info -->
+        <div id="controls-info" >
+            <div class="control-section">
+                <div><span class="control-key">W/S / Up/Down</span> - Move | <span class="control-key">A/D / Left/Right</span> - Rotate</div>
+            </div>
+            <div class="control-section">
+                <div><span class="control-key">Mouse</span> - Look | <span class="control-key">Left Click / X</span> - Shoot</div>
+            </div>
+            <div class="control-section">
+                <div><span class="control-key">R</span> - Reload | <span class="control-key">1, 2, 3</span> - Switch Gun</div>
+            </div>
+            <div class="control-section">
+                <div><span class="control-key">ESC</span> - Unlock Cursor</div>
+            </div>
+        </div>
+
+        <!-- Crosshair with Hitmarkers -->
+        <div id="crosshair">
+            <div class="hitmarker-ticks">
+                <div class="hitmarker-tick tick-tl"></div>
+                <div class="hitmarker-tick tick-tr"></div>
+                <div class="hitmarker-tick tick-bl"></div>
+                <div class="hitmarker-tick tick-br"></div>
+            </div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div id="loading-screen">
+            <div class="loading-spinner"></div>
+            <div class="loading-title">Loading Assets</div>
+            <div class="loading-status" id="loading-status">Initializing...</div>
+            <div class="loading-bar-container">
+                <div class="loading-bar" id="loading-bar"></div>
+            </div>
+        </div>
+
+        <!-- Game Menu -->
+        <div id="game-menu" class="hidden">
+            <div class="menu-title" id="menu-title">ZOMBIE SURVIVAL</div>
+            <div class="tip-message" id="tip-message">Kill or be killed, your choice.</div>
+            <div class="menu-subtitle" id="menu-subtitle">Press Enter to Start</div>
+            <div class="stats-container hidden" id="stats-container">
+                <div class="stat-row">
+                    <span class="stat-label">Kills:</span>
+                    <span class="stat-value" id="menu-kills">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Score:</span>
+                    <span class="stat-value" id="menu-score">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Waves:</span>
+                    <span class="stat-value" id="menu-wave">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SHADOW DEPTH SHADERS ================= -->
+    <script id="shadowDepthVertexShader" type="x-shader/x-vertex">
+        #version 300 es
+        precision highp float;
+
+        in vec3 position;
+
+        uniform mat4 lightSpaceMatrix;
+        uniform mat4 modelMatrix;
+        uniform mat4 nodeMatrix;
+
+        void main() {
+            gl_Position = lightSpaceMatrix * modelMatrix * nodeMatrix * vec4(position, 1.0);
+        }
+    </script>
+
+    <script id="shadowDepthSkinnedVertexShader" type="x-shader/x-vertex">
+        #version 300 es
+        precision highp float;
+        precision highp int;
+
+        in vec3 position;
+        in uvec4 joints;
+        in vec4 weights;
+
+        uniform mat4 lightSpaceMatrix;
+        uniform mat4 modelMatrix;
+        uniform mat4 nodeMatrix;
+        uniform mat4 jointMatrices[56];
+
+        void main() {
+            mat4 skinMatrix =
+                weights.x * jointMatrices[joints.x] +
+                weights.y * jointMatrices[joints.y] +
+                weights.z * jointMatrices[joints.z] +
+                weights.w * jointMatrices[joints.w];
+
+            vec4 skinnedPosition = skinMatrix * vec4(position, 1.0);
+            gl_Position = lightSpaceMatrix * modelMatrix * nodeMatrix * skinnedPosition;
+        }
+    </script>
+
+    <script id="shadowDepthFragmentShader" type="x-shader/x-fragment">
+        #version 300 es
+        precision highp float;
+        void main() {
+            // Depth is written automatically — nothing to do here.
+        }
+    </script>
+
+    <!-- ================= MAIN SCENE SHADERS (with shadow support) ================= -->
+    <script id="modelVertexShader" type="x-shader/x-vertex">
+        #version 300 es
+        precision highp float;
+        
+        in vec3 position;
+        in vec3 normal;
+        in vec2 textureCoordinate;
+        in vec4 tangent;
+
+        uniform mat4 modelMatrix;
+        uniform mat4 nodeMatrix;
+        uniform mat4 viewMatrix;
+        uniform mat4 projectionMatrix;
+        uniform mat4 lightSpaceMatrix;
+
+        out vec3 vFragPos;
+        out vec3 vNormal;
+        out vec2 vTexCoord;
+        out vec4 vLightSpacePos;
+        out vec3 vTangent;
+        out vec3 vBitangent;
+
+        void main() {
+            vec4 worldPos = modelMatrix * nodeMatrix * vec4(position, 1.0);
+            vFragPos = worldPos.xyz;
+            vTexCoord = textureCoordinate;
+            mat3 normalMatrix = mat3(transpose(inverse(modelMatrix * nodeMatrix)));
+            vNormal = normalMatrix * normal;
+            vTangent = normalMatrix * tangent.xyz;
+            vBitangent = cross(vNormal, vTangent) * tangent.w;
+            vLightSpacePos = lightSpaceMatrix * worldPos;
+            gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+    </script>
+
+    <script id="skinnedVertexShader" type="x-shader/x-vertex">
+        #version 300 es
+        precision highp float;
+        precision highp int;
+
+        in vec3 position;
+        in vec3 normal;
+        in vec2 textureCoordinate;
+        in vec4 tangent;
+        in uvec4 joints;
+        in vec4 weights;
+
+        uniform mat4 modelMatrix;
+        uniform mat4 nodeMatrix;
+        uniform mat4 viewMatrix;
+        uniform mat4 projectionMatrix;
+        uniform mat4 jointMatrices[56];
+        uniform mat4 lightSpaceMatrix;
+
+        out vec3 vFragPos;
+        out vec3 vNormal;
+        out vec2 vTexCoord;
+        out vec4 vLightSpacePos;
+        out vec3 vTangent;
+        out vec3 vBitangent;
+
+        void main() {
+            mat4 skinMatrix =
+                weights.x * jointMatrices[joints.x] +
+                weights.y * jointMatrices[joints.y] +
+                weights.z * jointMatrices[joints.z] +
+                weights.w * jointMatrices[joints.w];
+            
+            vec4 skinnedPosition = skinMatrix * vec4(position, 1.0);
+            vec3 skinnedNormal = mat3(skinMatrix) * normal;
+            vec3 skinnedTangent = mat3(skinMatrix) * tangent.xyz;
+            mat4 worldMatrix = modelMatrix * nodeMatrix;
+            vec4 worldPosition = worldMatrix * skinnedPosition;
+
+            mat3 normalMatrix = mat3(transpose(inverse(worldMatrix)));
+            vFragPos = worldPosition.xyz;
+            vNormal = normalMatrix * skinnedNormal;
+            vTangent = normalMatrix * skinnedTangent;
+            vBitangent = cross(vNormal, vTangent) * tangent.w;
+            vTexCoord = textureCoordinate;
+            vLightSpacePos = lightSpaceMatrix * worldPosition;
+            
+            gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+    </script>
+
+    <script id="modelFragmentShader" type="x-shader/x-fragment">
+        #version 300 es
+        precision highp float;
+        precision highp sampler2DShadow;
+
+        #define NUM_LIGHTS 25 
+        #define SHADOW_MAP_SIZE 2048.0
+
+        uniform vec3 lightPosition[NUM_LIGHTS];
+        uniform vec3 lightColor[NUM_LIGHTS];
+        uniform float lightRange[NUM_LIGHTS];
+        uniform int lightCount;
+
+        uniform vec3 cameraPosition;
+
+        uniform vec3 materialAmbient;
+        uniform vec3 materialDiffuse;
+        uniform vec3 materialSpecular;
+        uniform float materialShininess;
+
+        // Texture units
+        uniform sampler2D uTexture;
+        uniform sampler2DShadow shadowMap;
+        uniform sampler2D uMetallicRoughnessMap;
+        uniform sampler2D uNormalMap;
+        uniform sampler2D uEmissiveMap;
+        uniform sampler2D uOcclusionMap;
+
+        // Flags & Factors
+        uniform bool shadowEnabled;
+        uniform bool uHasMetallicRoughness;
+        uniform bool uHasNormalMap;
+        uniform bool uHasEmissiveMap;
+        uniform bool uHasOcclusionMap;
+        uniform bool uHasTangent;
+
+        uniform vec4 uBaseColorFactor;
+        uniform vec3 uEmissiveFactor;
+        uniform float uMetallicFactor;
+        uniform float uRoughnessFactor;
+
+        in vec3 vFragPos;
+        in vec3 vNormal;
+        in vec2 vTexCoord;
+        in vec4 vLightSpacePos;
+        in vec3 vTangent;
+        in vec3 vBitangent;
+
+        out vec4 finalColor;
+
+        float computeShadow() {
+            vec3 projCoords = vLightSpacePos.xyz / vLightSpacePos.w;
+            projCoords = projCoords * 0.5 + 0.5;
+
+            if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
+                projCoords.y < 0.0 || projCoords.y > 1.0 ||
+                projCoords.z > 1.0) {
+                return 1.0;
+            }
+
+            vec3 norm = normalize(vNormal);
+            vec3 lightDir = normalize(lightPosition[0] - vFragPos);
+            float cosTheta = max(dot(norm, lightDir), 0.0);
+            float bias = max(0.005 * (1.0 - cosTheta), 0.001);
+            float refDepth = projCoords.z - bias;
+
+            float shadow = 0.0;
+            float texelSize = 1.0 / SHADOW_MAP_SIZE;
+            for (int x = -1; x <= 1; x++) {
+                for (int y = -1; y <= 1; y++) {
+                    vec2 offset = vec2(float(x), float(y)) * texelSize;
+                    shadow += texture(shadowMap, vec3(projCoords.xy + offset, refDepth));
+                }
+            }
+            return shadow / 9.0;
+        }
+
+        // Cotangent frame calculation for meshes without tangent vertex attribute
+        vec3 cotangentNormal(vec3 N, vec3 p, vec2 uv, vec3 mapNormal) {
+            vec3 dp1 = dFdx(p);
+            vec3 dp2 = dFdy(p);
+            vec2 duv1 = dFdx(uv);
+            vec2 duv2 = dFdy(uv);
+
+            vec3 dp2perp = cross(dp2, N);
+            vec3 dp1perp = cross(N, dp1);
+            vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+            vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+
+            float invmax = inversesqrt(max(dot(T, T), dot(B, B)));
+            if (isinf(invmax) || isnan(invmax)) return N;
+            mat3 TBN = mat3(T * invmax, B * invmax, N);
+            return normalize(TBN * mapNormal);
+        }
+
+        void main() {
+            vec3 norm = normalize(vNormal);
+            if (!gl_FrontFacing) {
+                norm = -norm;
+            }
+            vec3 viewDir = normalize(cameraPosition - vFragPos);
+            norm = faceforward(norm, -viewDir, norm);
+
+            // Normal mapping
+            if (uHasNormalMap) {
+                vec3 mapNormal = texture(uNormalMap, vTexCoord).xyz * 2.0 - 1.0;
+                if (uHasTangent && length(vTangent) > 0.01) {
+                    vec3 T = normalize(vTangent - dot(vTangent, norm) * norm);
+                    vec3 B = normalize(cross(norm, T) * sign(dot(vBitangent, cross(norm, T))));
+                    mat3 TBN = mat3(T, B, norm);
+                    norm = normalize(TBN * mapNormal);
+                } else {
+                    norm = cotangentNormal(norm, vFragPos, vTexCoord, mapNormal);
+                }
+            }
+
+            // Base color
+            vec4 texColor = texture(uTexture, vTexCoord) * uBaseColorFactor;
+            if (texColor.a < 0.02) {
+                discard;
+            }
+
+            // Roughness & Metallic
+            float roughness = uRoughnessFactor;
+            float metalness = uMetallicFactor;
+            if (uHasMetallicRoughness) {
+                vec4 mr = texture(uMetallicRoughnessMap, vTexCoord);
+                roughness *= mr.g;
+                metalness *= mr.b;
+            }
+            roughness = clamp(roughness, 0.02, 1.0);
+            metalness = clamp(metalness, 0.04, 2.0);
+
+            // Ambient Occlusion
+            float ao = 1.0;
+            if (uHasOcclusionMap) {
+                ao = texture(uOcclusionMap, vTexCoord).r;
+            }
+
+            // Emissive
+            vec3 emissive = uEmissiveFactor;
+            if (uHasEmissiveMap) {
+                emissive *= texture(uEmissiveMap, vTexCoord).rgb;
+            }
+
+            // Shadow computation
+            float shadow = shadowEnabled ? computeShadow() : 1.0;
+
+            // Wet floor and roughness-based specular properties
+            // Puddles have low roughness (smooth), high shininess, and sharp reflections
+            float shininess = mix(512.0, 16.0, roughness);
+            float specPower = mix(3.0, 0.4, roughness);
+            vec3 specColor = mix(vec3(0.04), texColor.rgb, metalness);
+            // Water puddles on non-metals get clean dielectric reflection
+            specColor = mix(specColor, vec3(0.12), (1.0 - roughness) * (1.0 - metalness));
+
+            // Wet ground darkening (porous wet asphalt looks darker than dry asphalt)
+            float wetDarken = mix(0.6, 1.0, roughness);
+            vec3 diffuseColor = texColor.rgb * wetDarken * (1.0 - metalness * 0.9);
+
+            vec3 result = vec3(0.0);
+
+            for (int i = 0; i < NUM_LIGHTS; i++) {
+                if (i >= lightCount) continue;
+
+                float distanceToLight = distance(lightPosition[i], vFragPos);
+                float rangeFactor = max(1.0 - distanceToLight / lightRange[i], 0.0);
+                float attenuation = rangeFactor * rangeFactor;
+                if (attenuation <= 0.0) continue;
+
+                // Ambient
+                vec3 ambient = 0.08 * materialAmbient * lightColor[i] * attenuation * diffuseColor * ao;
+
+                // Diffuse
+                vec3 lightDir = normalize(lightPosition[i] - vFragPos);
+                float diff = max(dot(norm, lightDir), 0.0);
+                vec3 diffuse = diff * materialDiffuse * lightColor[i] * attenuation * diffuseColor;
+
+                // Blinn-Phong specular with roughness response
+                vec3 halfwayDir = normalize(lightDir + viewDir);
+                float specAngle = max(dot(norm, halfwayDir), 0.0);
+                float spec = pow(specAngle, shininess);
+                vec3 specular = spec * specPower * specColor * lightColor[i] * attenuation;
+
+                // Primary light (moonlight) receives shadows
+                if (i == 0) {
+                    result += ambient + shadow * (diffuse + specular);
+                } else {
+                    result += ambient + diffuse + specular;
+                }
+            }
+
+            // Environmental reflection for wet surfaces (puddles mirror the cool night sky & moon)
+            vec3 reflectDir = reflect(-viewDir, norm);
+            float NdotV = max(dot(norm, viewDir), 0.0);
+            float fresnel = 0.04 + 0.96 * pow(1.0 - NdotV, 5.0);
+            float skyFactor = max(reflectDir.y, 0.0);
+            vec3 nightSkyReflection = mix(vec3(0.015, 0.02, 0.05), vec3(0.06, 0.10, 0.20), skyFactor);
+            vec3 puddleReflection = nightSkyReflection * fresnel * (1.0 - roughness) * (1.0 - metalness) * 2.5;
+            result += puddleReflection;
+
+            // Emissive glow (lanterns, zombie eyes/blood)
+            result += emissive;
+
+            finalColor = vec4(result, texColor.a);
+        }
+    </script>
+
+
+
+    <script id="lightSphereVertexShader" type="x-shader/x-vertex">
+        #version 300 es
+        precision mediump float;
+
+        in vec3 position;
+
+        uniform mat4 modelMatrix;
+        uniform mat4 viewMatrix;
+        uniform mat4 projectionMatrix;
+
+        void main() {
+            gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+        }
+    </script>
+
+    <script id="lightSphereFragmentShader" type="x-shader/x-fragment">
+        #version 300 es
+        precision mediump float;
+
+        uniform vec4 color;
+        out vec4 finalColor;
+
+        void main() {
+            finalColor = color;
+        }
+    </script>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

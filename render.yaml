@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: 3d-game
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    nodeVersion: 18
